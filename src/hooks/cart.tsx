@@ -32,6 +32,13 @@ const CartProvider: React.FC = ({ children }) => {
   useEffect(() => {
     async function loadProducts(): Promise<void> {
       // TODO LOAD ITEMS FROM ASYNC STORAGE
+      const storagedProducts = await AsyncStorage.getItem(
+        '@GoMarketplace:Products',
+      );
+
+      if (storagedProducts) {
+        setProducts([...JSON.parse(storagedProducts)]);
+      }
     }
 
     loadProducts();
@@ -40,7 +47,21 @@ const CartProvider: React.FC = ({ children }) => {
   const addToCart = useCallback(
     async product => {
       // TODO ADD A NEW ITEM TO THE CART
-      setProducts([...products, product]);
+      const productExists = products.find(item => item.id === product.id);
+      if (productExists) {
+        setProducts(
+          products.map(p =>
+            p.id === product.id ? { ...product, quantity: p.quantity + 1 } : p,
+          ),
+        );
+      } else {
+        setProducts([...products, { ...product, quantity: 1 }]);
+      }
+
+      await AsyncStorage.setItem(
+        '@GoMarketplace:Products',
+        JSON.stringify(products),
+      );
     },
     [products],
   );
@@ -50,21 +71,49 @@ const CartProvider: React.FC = ({ children }) => {
       const productFound = products.find(item => item.id === id);
 
       if (productFound) {
-        productFound.quantity += 1;
+        setProducts(
+          products.map(item => {
+            if (item.id === id) return { ...item, quantity: item.quantity + 1 };
+            return item;
+          }),
+        );
+
+        await AsyncStorage.setItem(
+          '@GoMarketplace:Products',
+          JSON.stringify(products),
+        );
       }
-
-      const productsCopy = products.map(item => {
-        if (item.id === id) return productFound;
-      });
-
-      setProducts(productsCopy as Product[]);
     },
     [products],
   );
 
-  const decrement = useCallback(async id => {
-    // TODO DECREMENTS A PRODUCT QUANTITY IN THE CART
-  }, []);
+  const decrement = useCallback(
+    async id => {
+      // TODO DECREMENTS A PRODUCT QUANTITY IN THE CART
+
+      const productFound = products.find(item => item.id === id);
+
+      if (productFound) {
+        if (productFound.quantity > 1) {
+          setProducts(
+            products.map(item => {
+              if (item.id === id)
+                return { ...item, quantity: item.quantity - 1 };
+              return item;
+            }),
+          );
+        } else {
+          setProducts(products.filter(item => item.id !== productFound.id));
+        }
+
+        await AsyncStorage.setItem(
+          '@GoMarketplace:Products',
+          JSON.stringify(products),
+        );
+      }
+    },
+    [products],
+  );
 
   const value = React.useMemo(
     () => ({ addToCart, increment, decrement, products }),
